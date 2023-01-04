@@ -1,0 +1,39 @@
+# Get Name of Network Adapter Card
+$adapterName = Get-NetAdapter | Where-Object {$_.Status -eq "Up"} | Select-Object -First 1 -ExpandProperty Name
+Write-Output "Your Adapter's Name: '$adapterName'."
+
+# Check if the network card is asleep
+$networkAdapter = Get-WmiObject -Class Win32_NetworkAdapter -Filter "Name='$adapterName'"
+if ($networkAdapter.PowerManagementSupported -eq $true -and $networkAdapter.PowerManagementCapabilities -match "4") {
+    # Wake the network card up
+    Invoke-WmiMethod -InputObject $networkAdapter -Name Enable
+    Write-Output "Network adapter is now awake."
+}
+
+
+# Get the network adapter's IP address configuration
+$ipConfig = Get-WmiObject -Class Win32_NetworkAdapterConfiguration -Filter "IPEnabled='TRUE'"
+    Write-Ouput "Your ipConfig: '$ipConfig'"
+
+# Release and renew the IP address
+$ipConfig.ReleaseDHCPLease()
+$ipConfig.RenewDHCPLease()
+Write-Output "Your IP Address has been released and renewed."
+
+# Reset the network adapter's IP address
+$ipConfig.SetDNSServerSearchOrder()
+Write-Output "Your IP Address has been reset."
+
+# Restart the network adapter
+Restart-NetAdapter -Name "$networkAdapter" -Confirm:$false
+Write-Output "Your Network Adapter: '$networkAdapter' has been reset."
+
+# Restart the network adapter as an administrator
+$username = "ADMIN"
+$password = ConvertTo-SecureString "CREDENTIALS" -AsPlainText -Force
+$credential = New-Object System.Management.Automation.PSCredential($username, $password)
+
+Restart-NetAdapter -Name "$networkAdapter" -Confirm:$false -Credential $credential
+
+# Output the results
+Write-Output "Network adapter has been successfully restarted."
